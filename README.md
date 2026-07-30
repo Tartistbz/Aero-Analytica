@@ -21,23 +21,21 @@ Aero-Analytica 是一个面向无人机飞行日志的交互式分析与 AI 辅�
 
 ## 界面预览
 
-截图文件放入 `assets/screenshots/` 后会自动显示在以下位置。截图前请隐藏 API Key、私人服务地址、坐标和其他敏感飞行数据。
-
 ### 主界面
 
-![Aero-Analytica 主界面](assets/screenshots/main-workspace.png)
+![Aero-Analytica 主界面](assets/screenshots/main-workspace.PNG)
 
 ### Provider 配置
 
-![API Provider 配置](assets/screenshots/provider-configuration.png)
+![API Provider 配置](assets/screenshots/provider-configuration.PNG)
 
 ### 字段选择
 
-![日志字段选择](assets/screenshots/field-selection.png)
+![日志字段选择](assets/screenshots/field-selection.PNG)
 
 ### AI 诊断
 
-![AI 诊断报告](assets/screenshots/ai-diagnostic-report.png)
+![AI 诊断报告](assets/screenshots/ai-diagnostic-report.PNG)
 
 ## 工作流程
 
@@ -125,7 +123,7 @@ Aero-Analytica/
 |-- README_EN.md                   # English guide
 |-- PROJECT_ARCHITECTURE.md        # 详细架构与数据流
 |-- requirements.txt               # Python 依赖
-|-- assets/screenshots/            # README 截图槽位
+|-- assets/screenshots/            # 界面截图
 |-- src/
 |   |-- analyzer/                  # ArduPilot 与 PX4 解析器
 |   |-- ai/                        # Provider、Agent 和提示词

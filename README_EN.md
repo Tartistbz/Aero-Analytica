@@ -21,23 +21,21 @@ The application is built with Streamlit for flight debugging, troubleshooting, a
 
 ## Screenshots
 
-Screenshots placed in `assets/screenshots/` will appear in the following slots. Remove API keys, private endpoints, coordinates, and other sensitive flight data before capturing them.
-
 ### Main Workspace
 
-![Aero-Analytica main workspace](assets/screenshots/main-workspace.png)
+![Aero-Analytica main workspace](assets/screenshots/main-workspace.PNG)
 
 ### Provider Configuration
 
-![API Provider configuration](assets/screenshots/provider-configuration.png)
+![API Provider configuration](assets/screenshots/provider-configuration.PNG)
 
 ### Field Selection
 
-![Flight-log field selection](assets/screenshots/field-selection.png)
+![Flight-log field selection](assets/screenshots/field-selection.PNG)
 
 ### AI Diagnostics
 
-![AI diagnostic report](assets/screenshots/ai-diagnostic-report.png)
+![AI diagnostic report](assets/screenshots/ai-diagnostic-report.PNG)
 
 ## Workflow
 
@@ -125,7 +123,7 @@ Aero-Analytica/
 |-- README_EN.md                   # English guide
 |-- PROJECT_ARCHITECTURE.md        # Detailed architecture and data flow
 |-- requirements.txt               # Python dependencies
-|-- assets/screenshots/            # README screenshot slots
+|-- assets/screenshots/            # UI screenshots
 |-- src/
 |   |-- analyzer/                  # ArduPilot and PX4 parsers
 |   |-- ai/                        # Providers, Agent, and prompts
