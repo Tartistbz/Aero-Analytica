@@ -1,0 +1,21 @@
+id: ardupilot-throttle-clamp
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Clamp ArduPilot throttle percentage to the inclusive range 0 through 100. Run the regression test.
+acceptance:
+  test_commands: [node test/ardupilot-throttle.test.js]
+  diff_policy:
+    allowed_paths: [src/ardupilot-throttle.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/ardupilot-throttle.js
+      +++ b/src/ardupilot-throttle.js
+      @@ -1,3 +1,3 @@
+       export function clampThrottle(percent) {
+      -  return percent;
+      +  return Math.min(100, Math.max(0, percent));
+       }

@@ -1,0 +1,21 @@
+id: ros-bool-param
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Parse a ROS boolean parameter that may already be a boolean or may be the string true. Run the regression test.
+acceptance:
+  test_commands: [node test/ros-bool-param.test.js]
+  diff_policy:
+    allowed_paths: [src/ros-bool-param.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/ros-bool-param.js
+      +++ b/src/ros-bool-param.js
+      @@ -1,3 +1,3 @@
+       export function parseBoolParameter(value) {
+      -  return value === "true";
+      +  return value === true || value === "true";
+       }

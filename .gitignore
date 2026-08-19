@@ -12,6 +12,11 @@ htmlcov/
 # Build and package output
 build/
 dist/
+.repopilot/
+repopilot/.worktrees/
+repopilot/.tmp/
+*.tsbuildinfo
+node_modules/
 *.egg-info/
 *.egg
 

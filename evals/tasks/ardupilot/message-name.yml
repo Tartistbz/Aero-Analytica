@@ -1,0 +1,21 @@
+id: ardupilot-message-name
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Normalize an ArduPilot message name by trimming surrounding whitespace without changing its content. Run the regression test.
+acceptance:
+  test_commands: [node test/ardupilot-message-name.test.js]
+  diff_policy:
+    allowed_paths: [src/ardupilot-message-name.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/ardupilot-message-name.js
+      +++ b/src/ardupilot-message-name.js
+      @@ -1,3 +1,3 @@
+       export function normalizeMessageName(name) {
+      -  return name;
+      +  return name.trim();
+       }

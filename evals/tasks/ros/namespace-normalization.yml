@@ -1,0 +1,21 @@
+id: ros-namespace-normalization
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Normalize a ROS namespace by collapsing repeated slashes and removing a trailing slash, while preserving the leading namespace slash. Run the regression test.
+acceptance:
+  test_commands: [node test/ros-namespace.test.js]
+  diff_policy:
+    allowed_paths: [src/ros-namespace.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/ros-namespace.js
+      +++ b/src/ros-namespace.js
+      @@ -1,3 +1,3 @@
+       export function normalizeNamespace(name) {
+      -  return name;
+      +  return name.replace(/\/+/g, "/").replace(/\/$/, "");
+       }

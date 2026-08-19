@@ -1,0 +1,21 @@
+id: px4-finite-altitude
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Reject non-finite PX4 altitude samples before applying the existing lower bound. Keep valid finite altitude samples accepted. Run the regression test.
+acceptance:
+  test_commands: [node test/px4-altitude.test.js]
+  diff_policy:
+    allowed_paths: [src/px4-altitude.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/px4-altitude.js
+      +++ b/src/px4-altitude.js
+      @@ -1,3 +1,3 @@
+       export function isValidAltitude(altitudeMeters) {
+      -  return altitudeMeters > -1_000;
+      +  return Number.isFinite(altitudeMeters) && altitudeMeters > -1_000;
+       }

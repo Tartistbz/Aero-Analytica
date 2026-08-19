@@ -1,0 +1,21 @@
+id: ros-qos-default
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Default an unset ROS QoS reliability policy to reliable while preserving an explicitly configured policy. Run the regression test.
+acceptance:
+  test_commands: [node test/ros-qos.test.js]
+  diff_policy:
+    allowed_paths: [src/ros-qos.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/ros-qos.js
+      +++ b/src/ros-qos.js
+      @@ -1,3 +1,3 @@
+       export function reliabilityPolicy(configured) {
+      -  return configured;
+      +  return configured ?? "reliable";
+       }

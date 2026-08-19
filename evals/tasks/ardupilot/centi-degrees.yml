@@ -1,0 +1,21 @@
+id: ardupilot-centi-degrees
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Convert ArduPilot centi-degree angle values to degree values. Run the regression test.
+acceptance:
+  test_commands: [node test/ardupilot-angle.test.js]
+  diff_policy:
+    allowed_paths: [src/ardupilot-angle.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/ardupilot-angle.js
+      +++ b/src/ardupilot-angle.js
+      @@ -1,3 +1,3 @@
+       export function centiDegreesToDegrees(centiDegrees) {
+      -  return centiDegrees;
+      +  return centiDegrees / 100;
+       }

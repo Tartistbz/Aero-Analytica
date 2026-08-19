@@ -6,6 +6,12 @@ Aero-Analytica 是一个面向无人机飞行日志的交互式分析与 AI 辅�
 
 项目基于 Streamlit 构建，适合飞行调试、故障排查和日志数据探索。
 
+## RepoPilot
+
+仓库同时包含独立的 TypeScript 工程 **RepoPilot**：基于 Pi Agent SDK 的真实代码库执行、验证、恢复与评测 Harness。Pi 负责 Agent Loop，RepoPilot 负责仓库上下文选择、Git worktree 隔离、受限工具、验证门禁、Checkpoint、Trace 回放和评测报告。
+
+RepoPilot 不嵌入 Streamlit 日志分析应用，也不替代现有 Aero-Analytica；现有无人机领域能力可作为后续 PX4/ArduPilot 任务的真实上下文。安装、Pi 配置、CLI、任务 YAML 与 15 个可复现评测任务见 [README_REPOPILOT.md](README_REPOPILOT.md)。
+
 ## 功能特点
 
 - **ArduPilot 与 PX4 支持**：解析 `.bin` 和 `.ulg`，支持 PX4 多实例 Topic。

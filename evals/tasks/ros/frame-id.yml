@@ -1,0 +1,21 @@
+id: ros-frame-id
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Normalize a ROS frame id by removing one leading slash. Run the regression test.
+acceptance:
+  test_commands: [node test/ros-frame-id.test.js]
+  diff_policy:
+    allowed_paths: [src/ros-frame-id.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/ros-frame-id.js
+      +++ b/src/ros-frame-id.js
+      @@ -1,3 +1,3 @@
+       export function normalizeFrameId(frameId) {
+      -  return frameId;
+      +  return frameId.replace(/^\//, "");
+       }

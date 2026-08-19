@@ -1,0 +1,16 @@
+tasks:
+  - ../tasks/px4/topic-instance.yml
+  - ../tasks/px4/timestamp-units.yml
+  - ../tasks/px4/finite-altitude.yml
+  - ../tasks/px4/battery-current.yml
+  - ../tasks/px4/actuator-clamp.yml
+  - ../tasks/ardupilot/message-name.yml
+  - ../tasks/ardupilot/gps-fix.yml
+  - ../tasks/ardupilot/centi-degrees.yml
+  - ../tasks/ardupilot/unknown-mode.yml
+  - ../tasks/ardupilot/throttle-clamp.yml
+  - ../tasks/ros/namespace-normalization.yml
+  - ../tasks/ros/qos-default.yml
+  - ../tasks/ros/retry-delay.yml
+  - ../tasks/ros/frame-id.yml
+  - ../tasks/ros/bool-param.yml

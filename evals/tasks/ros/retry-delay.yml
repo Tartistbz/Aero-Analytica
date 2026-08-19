@@ -1,0 +1,21 @@
+id: ros-retry-delay
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Convert a ROS retry delay from seconds to milliseconds but never return a negative delay. Run the regression test.
+acceptance:
+  test_commands: [node test/ros-retry-delay.test.js]
+  diff_policy:
+    allowed_paths: [src/ros-retry-delay.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/ros-retry-delay.js
+      +++ b/src/ros-retry-delay.js
+      @@ -1,3 +1,3 @@
+       export function retryDelayMilliseconds(seconds) {
+      -  return seconds * 1_000;
+      +  return Math.max(0, seconds * 1_000);
+       }

@@ -1,0 +1,21 @@
+id: px4-battery-current
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Clamp a negative PX4 battery current reading to zero while preserving valid positive current values. Run the regression test.
+acceptance:
+  test_commands: [node test/px4-battery-current.test.js]
+  diff_policy:
+    allowed_paths: [src/px4-battery-current.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/px4-battery-current.js
+      +++ b/src/px4-battery-current.js
+      @@ -1,3 +1,3 @@
+       export function normalizedBatteryCurrent(currentAmps) {
+      -  return currentAmps;
+      +  return Math.max(0, currentAmps);
+       }

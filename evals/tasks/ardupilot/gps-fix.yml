@@ -1,0 +1,21 @@
+id: ardupilot-gps-fix
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Correct the ArduPilot GPS validity predicate so only 3D fix or better counts as a valid 3D GPS fix. Run the regression test.
+acceptance:
+  test_commands: [node test/ardupilot-gps-fix.test.js]
+  diff_policy:
+    allowed_paths: [src/ardupilot-gps-fix.js]
+    max_files_changed: 1
+    max_added_lines: 1
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/ardupilot-gps-fix.js
+      +++ b/src/ardupilot-gps-fix.js
+      @@ -1,3 +1,3 @@
+       export function has3dGpsFix(fixType) {
+      -  return fixType >= 2;
+      +  return fixType >= 3;
+       }

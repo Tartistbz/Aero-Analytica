@@ -1,0 +1,25 @@
+id: px4-topic-instance
+fixture: ../../fixtures/robotics-tasks
+base_ref: HEAD
+prompt: Normalize PX4 ULog topic names by removing a trailing numeric instance suffix such as `_0`, while preserving the base topic name. Run the regression test.
+context:
+  strategy: focused
+  budget_tokens: 4000
+  include: [src/**, test/**]
+acceptance:
+  test_commands: [node test/px4-topic-name.test.js]
+  diff_policy:
+    allowed_paths: [src/px4-topic-name.js]
+    max_files_changed: 1
+    max_added_lines: 3
+    max_deleted_lines: 1
+fake_actions:
+  - tool: patch
+    patch: |
+      --- a/src/px4-topic-name.js
+      +++ b/src/px4-topic-name.js
+      @@ -1,3 +1,3 @@
+       export function normalizeTopicName(topic) {
+      -  return topic;
+      +  return topic.replace(/_\d+$/, "");
+       }

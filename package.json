@@ -1,0 +1,33 @@
+{
+  "name": "repopilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A repository execution, verification, recovery and evaluation harness built around Pi Agent.",
+  "type": "module",
+  "bin": {
+    "repopilot": "dist/repopilot/src/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx repopilot/src/cli.ts",
+    "repopilot": "tsx repopilot/src/cli.ts",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "eval:smoke": "tsx repopilot/src/cli.ts eval --suite evals/suites/smoke.yml --strategy focused",
+    "eval:robotics": "tsx repopilot/src/cli.ts eval --suite evals/suites/robotics-15.yml --strategy focused"
+  },
+  "dependencies": {
+    "@mariozechner/pi-ai": "^0.73.1",
+    "@mariozechner/pi-coding-agent": "^0.73.1",
+    "commander": "^12.1.0",
+    "yaml": "^2.5.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

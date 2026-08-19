@@ -1,0 +1,4 @@
+tasks:
+  - ../tasks/px4/topic-instance.yml
+  - ../tasks/ardupilot/gps-fix.yml
+  - ../tasks/ros/namespace-normalization.yml

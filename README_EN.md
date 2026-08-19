@@ -6,6 +6,12 @@ Aero-Analytica is an interactive UAV flight-log explorer and AI-assisted diagnos
 
 The application is built with Streamlit for flight debugging, troubleshooting, and log-data exploration.
 
+## RepoPilot
+
+This repository also contains **RepoPilot**, an independent TypeScript harness for running, verifying, recovering and evaluating Pi Agent on repository tasks. Pi owns the agent loop; RepoPilot provides context selection, Git worktree isolation, constrained tools, verification gates, checkpoints, trace replay and evaluation reports.
+
+RepoPilot does not replace or embed into the Streamlit log-analysis application. The UAV domain remains useful context for future PX4 and ArduPilot tasks. See [README_REPOPILOT.md](README_REPOPILOT.md) for installation, Pi configuration, CLI commands, task YAML and the reproducible 15-task evaluation suite.
+
 ## Features
 
 - **ArduPilot and PX4 support**: Parse `.bin` and `.ulg` logs, including multi-instance PX4 topics.
