@@ -214,6 +214,48 @@ def run_evaluation(
         )
 
 
+def run_repository_task(
+    *,
+    repository: Path,
+    task: Path,
+    runtime: str = "pi",
+    strategy: str = "focused",
+    keep_worktree: bool = True,
+    pi_env: Optional[Mapping[str, str]] = None,
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+    root: Optional[Path] = None,
+) -> CliInvocation:
+    """Run one trusted task YAML against a user-selected local Git repository."""
+
+    root = Path(root or project_root()).resolve()
+    if runtime not in {"fake", "pi"}:
+        raise RepoPilotServiceError("运行模式只能是 fake 或 pi")
+    if strategy not in {"map-only", "focused", "focused+history"}:
+        raise RepoPilotServiceError("未知的上下文策略")
+    repository = _repository_root(repository)
+    task = _task_file(task)
+
+    arguments = [
+        "run",
+        "--repo",
+        str(repository),
+        "--task",
+        str(task),
+        "--runtime",
+        runtime,
+        "--strategy",
+        strategy,
+    ]
+    if keep_worktree:
+        arguments.append("--keep-worktree")
+    return _run_cli(
+        arguments,
+        root=root,
+        timeout_seconds=timeout_seconds,
+        extra_env=pi_env,
+    )
+
+
 def replay_run(
     run_dir: Path,
     *,
@@ -231,6 +273,46 @@ def replay_run(
         root=root,
         timeout_seconds=timeout_seconds,
     )
+
+
+def to_evaluation_payload(invocation: CliInvocation) -> dict[str, Any]:
+    """Normalize ``run`` output so the UI can render it like an eval result."""
+
+    payload = invocation.payload or {}
+    if isinstance(payload.get("tasks"), list):
+        return dict(payload)
+    run_dir_value = payload.get("runDir")
+    if not run_dir_value:
+        return dict(payload)
+
+    artifact = load_run_artifact(Path(str(run_dir_value)))
+    checks = artifact["verification"]["checks"]
+    test_checks = [check for check in checks if check["name"].startswith("test:")]
+    status = str(payload.get("status") or artifact.get("status") or "failed")
+    succeeded = int(status == "succeeded")
+    return {
+        "total": 1,
+        "succeeded": succeeded,
+        "successRate": float(succeeded),
+        "report": artifact.get("report_path"),
+        "tasks": [
+            {
+                "id": artifact.get("task_id"),
+                "status": status,
+                "failureCategory": payload.get("failureCategory")
+                or artifact.get("failure_category"),
+                "runId": payload.get("runId") or artifact.get("run_id"),
+                "runDir": str(run_dir_value),
+                "toolCalls": artifact["trace"]["tool_calls"],
+                "contextTokens": artifact["context"]["estimated_tokens"],
+                "selectedFiles": len(artifact["context"]["selected_files"]),
+                "durationMs": invocation.duration_ms,
+                "testPassed": bool(test_checks)
+                and all(check["ok"] for check in test_checks),
+                "recoveryCount": artifact["trace"]["recovery_count"],
+            }
+        ],
+    }
 
 
 def load_run_artifact(run_dir: Path) -> dict[str, Any]:
@@ -251,6 +333,7 @@ def load_run_artifact(run_dir: Path) -> dict[str, Any]:
         "run_dir": str(run_dir),
         "run_id": str(metadata.get("runId") or run_dir.name),
         "task_id": str(metadata.get("taskId") or "unknown"),
+        "worktree": str(metadata.get("worktree") or ""),
         "status": str(metadata.get("status") or trace["status"] or "unknown"),
         "failure_category": verification.get("failureCategory"),
         "verification": {
@@ -294,6 +377,7 @@ def load_eval_artifacts(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
                 "run_dir": str(row["runDir"]),
                 "run_id": str(row.get("runId", "unknown")),
                 "task_id": str(row.get("id", "unknown")),
+                "worktree": "",
                 "status": str(row.get("status", "unknown")),
                 "failure_category": row.get("failureCategory"),
                 "unavailable": True,
@@ -412,6 +496,24 @@ def _find_executable(name: str) -> Optional[str]:
         if found:
             return found
     return None
+
+
+def _repository_root(path: Path) -> Path:
+    repository = Path(path).expanduser().resolve()
+    if not repository.is_dir():
+        raise RepoPilotServiceError(f"仓库目录不存在：{repository}")
+    if not (repository / ".git").exists():
+        raise RepoPilotServiceError(f"不是 Git 工作树：{repository}")
+    return repository
+
+
+def _task_file(path: Path) -> Path:
+    task = Path(path).expanduser().resolve()
+    if task.suffix.casefold() not in {".yml", ".yaml"}:
+        raise RepoPilotServiceError("任务文件必须是 .yml 或 .yaml")
+    if not task.is_file():
+        raise RepoPilotServiceError(f"任务文件不存在：{task}")
+    return task
 
 
 def _checked_path(path: Path, parent: Path, label: str) -> Path:

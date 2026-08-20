@@ -10,7 +10,7 @@ The application is built with Streamlit for flight debugging, troubleshooting, a
 
 This repository also contains **RepoPilot**, a TypeScript harness for running, verifying, recovering and evaluating Pi Agent on repository tasks. Pi owns the agent loop; RepoPilot provides context selection, Git worktree isolation, constrained tools, verification gates, checkpoints, trace replay and evaluation reports.
 
-The Streamlit application now includes an **Engineering Evaluation** workspace. It runs bundled PX4, ArduPilot and ROS fixture tasks through Fake or Pi Agent, and exposes verification, diffs, context, traces and HTML reports. It complements rather than replaces flight-log analysis. See [README_REPOPILOT.md](README_REPOPILOT.md) for the CLI, Pi configuration and task YAML.
+The Streamlit application now includes an **Engineering Evaluation** workspace. It runs bundled PX4, ArduPilot and ROS fixture tasks, or a user-selected local Git repository plus task YAML, through Fake or Pi Agent in an isolated worktree. It exposes verification, diffs, context, traces and HTML reports, and complements rather than replaces flight-log analysis. See [README_REPOPILOT.md](README_REPOPILOT.md) for the CLI, Pi configuration and task YAML.
 
 ## Features
 
@@ -24,7 +24,7 @@ The Streamlit application now includes an **Engineering Evaluation** workspace. 
 - **Remote model discovery**: Fetch models from a Provider or enter a model name manually.
 - **Automatic report continuation**: Continue an incomplete report when a model reaches its output limit.
 - **Content-addressed uploads**: Store logs by SHA-256 hash so same-named files cannot overwrite one another.
-- **Engineering evaluation workspace**: Run reproducible RepoPilot tasks and inspect verification, Trace, final diff, and an evaluation report in the same application.
+- **Engineering evaluation workspace**: Run reproducible suites or a local Git repository task, then inspect verification, Trace, final diff, retained worktree, and an evaluation report.
 
 ## Screenshots
 
@@ -108,7 +108,8 @@ Open <http://localhost:8501> after startup.
 4. Save the Provider, then ask a flight-related question such as "Is the aircraft underpowered?" or "Was altitude control stable?"
 5. AI-recommended fields appear on the left, where fields can still be added, removed, or hidden individually.
 6. After chart data is prepared, the diagnostic report appears on the right.
-7. Open **Engineering Evaluation** to run a bundled suite. Fake mode is offline; Pi Agent uses the Provider selected in the sidebar.
+7. Open **Engineering Evaluation** → **Bundled Evaluation** to run the deterministic suites. Fake mode is offline.
+8. Use **Local Repository** with a local Git path and a trusted task YAML. Pi Agent uses the Provider selected in the sidebar, and its successful worktree can be retained for inspection.
 
 ## Provider Configuration
 

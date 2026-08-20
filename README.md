@@ -10,7 +10,7 @@ Aero-Analytica 是一个面向无人机飞行日志的交互式分析与 AI 辅�
 
 仓库同时包含 TypeScript 工程 **RepoPilot**：基于 Pi Agent SDK 的真实代码库执行、验证、恢复与评测 Harness。Pi 负责 Agent Loop，RepoPilot 负责仓库上下文选择、Git worktree 隔离、受限工具、验证门禁、Checkpoint、Trace 回放和评测报告。
 
-Streamlit 现已提供“工程评测”页签，作为 Aero-Analytica 的第二个工作区：可选择内置 PX4、ArduPilot 与 ROS fixture 任务，运行 Fake 或 Pi Agent，查看验证、Diff、上下文、Trace 和 HTML 报告。它不替代飞行日志分析；详细 CLI、Pi 配置和任务 YAML 见 [README_REPOPILOT.md](README_REPOPILOT.md)。
+Streamlit 现已提供“工程评测”页签，作为 Aero-Analytica 的第二个工作区：可运行内置 PX4、ArduPilot 与 ROS fixture 任务，也可选择本地 Git 仓库和任务 YAML，在隔离 worktree 中运行 Fake 或 Pi Agent，并查看验证、Diff、上下文、Trace 和 HTML 报告。它不替代飞行日志分析；详细 CLI、Pi 配置和任务 YAML 见 [README_REPOPILOT.md](README_REPOPILOT.md)。
 
 ## 功能特点
 
@@ -24,7 +24,7 @@ Streamlit 现已提供“工程评测”页签，作为 Aero-Analytica 的第二
 - **远程模型列表**：可从 Provider 获取模型，也可以手工指定模型名。
 - **报告自动续写**：模型输出达到长度上限时，可自动继续生成未完成的报告。
 - **安全上传存储**：日志按 SHA-256 内容哈希保存，同名文件不会相互覆盖。
-- **工程评测工作区**：在同一应用内运行可复现的 RepoPilot 任务，查看验证、Trace、最终 Diff 和评测报告。
+- **工程评测工作区**：运行内置基准或本地 Git 仓库任务，查看验证、Trace、最终 Diff、保留的 worktree 和评测报告。
 
 ## 界面预览
 
@@ -108,7 +108,8 @@ python -m streamlit run app.py
 4. 保存 Provider 后，在右侧输入飞行问题，例如“动力是否不足”或“高度控制是否稳定”。
 5. AI 推荐的字段会显示在左侧，可继续手动增删字段或隐藏单条曲线。
 6. 图表和统计数据准备完成后，右侧会生成分析报告。
-7. 切换到“工程评测”可运行内置任务集；默认 Fake 模式不调用真实模型，Pi Agent 模式使用侧边栏当前 Provider。
+7. 切换到“工程评测”的“内置评测”可运行确定性任务集；默认 Fake 模式不调用真实模型。
+8. 在“真实仓库”中填写本地 Git 仓库和受信任任务 YAML；Pi Agent 模式使用侧边栏当前 Provider，成功 worktree 可保留供后续检查。
 
 ## Provider 配置
 

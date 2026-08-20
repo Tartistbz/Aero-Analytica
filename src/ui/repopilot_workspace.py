@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 import streamlit as st
 
@@ -17,7 +17,9 @@ from src.repopilot.service import (
     pi_environment,
     replay_run,
     run_evaluation,
+    run_repository_task,
     runtime_status,
+    to_evaluation_payload,
 )
 
 
@@ -30,7 +32,8 @@ STRATEGY_LABELS = {
     "focused": "聚焦文件",
     "focused+history": "聚焦文件 + 历史压缩",
 }
-RESULT_KEY = "repopilot_last_evaluation"
+FIXTURE_RESULT_KEY = "repopilot_fixture_evaluation"
+REPOSITORY_RESULT_KEY = "repopilot_repository_evaluation"
 
 
 def render_repopilot_workspace(active_provider: Optional[ProviderConfig]) -> None:
@@ -50,36 +53,44 @@ def render_repopilot_workspace(active_provider: Optional[ProviderConfig]) -> Non
         st.error(f"工程评测不可用：缺少 {', '.join(missing)}")
         return
 
+    st.subheader("工程评测")
+    bundled_tab, repository_tab = st.tabs(["内置评测", "真实仓库"])
+
+    with bundled_tab:
+        _render_bundled_evaluation(active_provider)
+    with repository_tab:
+        _render_repository_evaluation(active_provider)
+
+
+def _render_bundled_evaluation(active_provider: Optional[ProviderConfig]) -> None:
     tasks = discover_tasks()
     suites = discover_suites()
     if not tasks or not suites:
         st.error("未发现评测任务或任务集。")
         return
 
-    st.subheader("工程评测")
-    st.caption("内置任务：PX4 / ArduPilot / ROS 确定性 fixtures")
-
+    st.caption("PX4 / ArduPilot / ROS 确定性 fixtures")
     source_col, runtime_col, strategy_col = st.columns([1.2, 1, 1.4])
     with source_col:
         source_kind = st.radio(
             "执行范围",
             ["任务集", "单个任务"],
             horizontal=True,
-            key="repopilot_source_kind",
+            key="repopilot_fixture_source_kind",
         )
     with runtime_col:
         runtime = st.selectbox(
             "运行时",
             list(RUNTIME_LABELS),
             format_func=RUNTIME_LABELS.get,
-            key="repopilot_runtime",
+            key="repopilot_fixture_runtime",
         )
     with strategy_col:
         strategy = st.selectbox(
             "上下文策略",
             list(STRATEGY_LABELS),
             format_func=STRATEGY_LABELS.get,
-            key="repopilot_strategy",
+            key="repopilot_fixture_strategy",
         )
 
     selected_suite = None
@@ -89,34 +100,28 @@ def render_repopilot_workspace(active_provider: Optional[ProviderConfig]) -> Non
             "任务集",
             suites,
             format_func=lambda item: item.label,
-            key="repopilot_suite",
+            key="repopilot_fixture_suite",
         )
     else:
         selected_task = st.selectbox(
             "任务",
             tasks,
             format_func=lambda item: item.label,
-            key="repopilot_task",
+            key="repopilot_fixture_task",
         )
         if selected_task.prompt:
             st.caption(selected_task.prompt)
 
-    if runtime == "pi":
-        if active_provider is None:
-            st.warning("Pi Agent 运行需要先在侧边栏选择 API Provider。")
-        else:
-            st.caption(f"Pi 使用当前 Provider：{active_provider.name} · {active_provider.model}")
+    _render_pi_status(runtime, active_provider)
 
     if st.button(
         "开始评测",
         icon=":material/play_arrow:",
         type="primary",
-        key="repopilot_start",
+        key="repopilot_fixture_start",
     ):
         try:
-            process_env = pi_environment(active_provider) if runtime == "pi" and active_provider else None
-            if runtime == "pi" and process_env is None:
-                raise RepoPilotServiceError("请先在侧边栏配置并选择 AI Provider。")
+            process_env = _pi_environment_for(runtime, active_provider)
             with st.spinner("RepoPilot 正在隔离执行并验证任务..."):
                 invocation = run_evaluation(
                     suite=selected_suite.path if selected_suite else None,
@@ -128,19 +133,122 @@ def render_repopilot_workspace(active_provider: Optional[ProviderConfig]) -> Non
         except RepoPilotServiceError as exc:
             st.error(str(exc))
         else:
-            st.session_state[RESULT_KEY] = invocation
+            st.session_state[FIXTURE_RESULT_KEY] = invocation
             if invocation.payload is None:
                 st.error(invocation.error or "评测未返回结果。")
             else:
                 st.rerun()
 
-    invocation = st.session_state.get(RESULT_KEY)
-    if isinstance(invocation, CliInvocation) and invocation.payload:
+    invocation = _stored_invocation(FIXTURE_RESULT_KEY)
+    if invocation:
         _render_evaluation_result(invocation)
 
 
-def _render_evaluation_result(invocation: CliInvocation) -> None:
-    payload = invocation.payload or {}
+def _render_repository_evaluation(active_provider: Optional[ProviderConfig]) -> None:
+    st.caption("任务会在目标仓库的隔离 Git worktree 中执行。")
+    st.warning("仅运行你信任的任务 YAML：任务可以声明 shell、测试和 setup 命令。")
+    repository_path = st.text_input(
+        "Git 仓库路径",
+        placeholder=r"D:\work\px4",
+        key="repopilot_repository_path",
+    )
+    task_path = st.text_input(
+        "任务 YAML 路径",
+        placeholder=r"D:\work\tasks\fix-topic.yml",
+        key="repopilot_repository_task_path",
+    )
+    runtime_col, strategy_col, worktree_col = st.columns([1, 1.4, 1])
+    with runtime_col:
+        runtime = st.selectbox(
+            "运行时",
+            list(RUNTIME_LABELS),
+            format_func=RUNTIME_LABELS.get,
+            key="repopilot_repository_runtime",
+        )
+    with strategy_col:
+        strategy = st.selectbox(
+            "上下文策略",
+            list(STRATEGY_LABELS),
+            format_func=STRATEGY_LABELS.get,
+            key="repopilot_repository_strategy",
+        )
+    with worktree_col:
+        keep_worktree = st.checkbox(
+            "保留 worktree",
+            value=True,
+            key="repopilot_repository_keep_worktree",
+        )
+
+    _render_pi_status(runtime, active_provider)
+    if st.button(
+        "运行仓库任务",
+        icon=":material/play_arrow:",
+        type="primary",
+        key="repopilot_repository_start",
+    ):
+        try:
+            if not repository_path.strip() or not task_path.strip():
+                raise RepoPilotServiceError("请填写 Git 仓库路径和任务 YAML 路径。")
+            process_env = _pi_environment_for(runtime, active_provider)
+            with st.spinner("RepoPilot 正在隔离执行并验证任务..."):
+                invocation = run_repository_task(
+                    repository=Path(repository_path.strip()),
+                    task=Path(task_path.strip()),
+                    runtime=runtime,
+                    strategy=strategy,
+                    keep_worktree=keep_worktree,
+                    pi_env=process_env,
+                )
+        except RepoPilotServiceError as exc:
+            st.error(str(exc))
+        else:
+            st.session_state[REPOSITORY_RESULT_KEY] = invocation
+            if invocation.payload is None:
+                st.error(invocation.error or "任务未返回结果。")
+            else:
+                st.rerun()
+
+    invocation = _stored_invocation(REPOSITORY_RESULT_KEY)
+    if invocation:
+        payload = to_evaluation_payload(invocation)
+        if payload.get("tasks"):
+            _render_evaluation_result(invocation, payload=payload)
+        else:
+            st.error(invocation.error or "任务未生成可读取的运行产物。")
+
+
+def _render_pi_status(
+    runtime: str, active_provider: Optional[ProviderConfig]
+) -> None:
+    if runtime != "pi":
+        return
+    if active_provider is None:
+        st.warning("Pi Agent 运行需要先在侧边栏选择 API Provider。")
+    else:
+        st.caption(f"Pi 使用当前 Provider：{active_provider.name} · {active_provider.model}")
+
+
+def _pi_environment_for(
+    runtime: str, active_provider: Optional[ProviderConfig]
+) -> Optional[dict[str, str]]:
+    if runtime != "pi":
+        return None
+    if active_provider is None:
+        raise RepoPilotServiceError("请先在侧边栏配置并选择 AI Provider。")
+    return pi_environment(active_provider)
+
+
+def _stored_invocation(key: str) -> Optional[CliInvocation]:
+    invocation = st.session_state.get(key)
+    return invocation if getattr(invocation, "payload", None) is not None else None
+
+
+def _render_evaluation_result(
+    invocation: CliInvocation,
+    *,
+    payload: Optional[Mapping[str, Any]] = None,
+) -> None:
+    payload = dict(payload or invocation.payload or {})
     artifacts = load_eval_artifacts(payload)
     total = int(payload.get("total", len(artifacts)) or 0)
     succeeded = int(payload.get("succeeded", 0) or 0)
@@ -205,6 +313,10 @@ def _render_run_details(artifact: dict[str, Any]) -> None:
         if artifact.get("unavailable"):
             st.warning("该运行产物已不可用。")
             return
+
+        worktree = str(artifact.get("worktree") or "")
+        if worktree:
+            st.text(f"隔离 worktree：{worktree}")
 
         context = artifact.get("context", {})
         context_columns = st.columns(3)

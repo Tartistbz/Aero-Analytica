@@ -11,11 +11,14 @@ from src.ai.providers import (
     ProviderConfig,
 )
 from src.repopilot.service import (
+    CliInvocation,
     discover_suites,
     discover_tasks,
     load_run_artifact,
     pi_environment,
     run_evaluation,
+    run_repository_task,
+    to_evaluation_payload,
 )
 
 
@@ -106,6 +109,48 @@ class RepoPilotServiceTests(unittest.TestCase):
 
         self.assertEqual(result.payload, payload)
 
+    def test_repository_run_uses_argument_array_and_keeps_worktree(self):
+        root = Path(__file__).resolve().parents[1]
+        completed = SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "runId": "run-1",
+                    "status": "succeeded",
+                    "runDir": "D:/runs/run-1",
+                    "worktree": "D:/repo/.repopilot/worktrees/run-1",
+                }
+            ),
+            stderr="",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            repository = temp_root / "repository"
+            repository.mkdir()
+            (repository / ".git").mkdir()
+            task = temp_root / "task.yml"
+            task.write_text("id: sample\n", encoding="utf-8")
+
+            with patch(
+                "src.repopilot.service.subprocess.run", return_value=completed
+            ) as run:
+                result = run_repository_task(
+                    repository=repository,
+                    task=task,
+                    runtime="pi",
+                    strategy="focused+history",
+                    keep_worktree=True,
+                    pi_env={"REPOPILOT_PI_API_KEY": "do-not-display"},
+                    root=root,
+                )
+
+        command = run.call_args.args[0]
+        self.assertTrue(result.ok)
+        self.assertIn("run", command)
+        self.assertIn("--keep-worktree", command)
+        self.assertIn("focused+history", command)
+        self.assertNotIn("do-not-display", command)
+
     def test_run_artifact_includes_trace_and_verifier_data(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             run_dir = Path(temp_dir)
@@ -114,6 +159,7 @@ class RepoPilotServiceTests(unittest.TestCase):
                     {
                         "runId": "run-1",
                         "taskId": "px4-sample",
+                        "worktree": "D:/repo/.repopilot/worktrees/run-1",
                         "status": "succeeded",
                         "verification": {
                             "ok": True,
@@ -159,10 +205,27 @@ class RepoPilotServiceTests(unittest.TestCase):
             (run_dir / "final.diff").write_text("diff --git a/a b/a", encoding="utf-8")
 
             artifact = load_run_artifact(run_dir)
+            payload = to_evaluation_payload(
+                CliInvocation(
+                    command=("npm", "run"),
+                    returncode=0,
+                    duration_ms=42,
+                    payload={
+                        "runId": "run-1",
+                        "status": "succeeded",
+                        "runDir": str(run_dir),
+                    },
+                    stdout="",
+                    stderr="",
+                )
+            )
 
         self.assertTrue(artifact["verification"]["ok"])
         self.assertEqual(artifact["trace"]["tool_calls"], 1)
         self.assertEqual(artifact["context"]["selected_files"], ["src/sample.js"])
+        self.assertEqual(artifact["worktree"], "D:/repo/.repopilot/worktrees/run-1")
+        self.assertEqual(payload["tasks"][0]["toolCalls"], 1)
+        self.assertTrue(payload["tasks"][0]["testPassed"])
 
 
 if __name__ == "__main__":

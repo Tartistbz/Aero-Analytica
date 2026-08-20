@@ -9,7 +9,7 @@
 当前 Aero-Analytica 包含两个共享 Provider 管理与无人机领域上下文的工作区：
 
 1. **飞行日志分析**：AI 对话驱动的无人机日志动态分析工具。
-2. **工程评测**：RepoPilot 的图形入口，用于受控执行、验证和评测 PX4、ArduPilot 与 ROS 相关代码任务。
+2. **工程评测**：RepoPilot 的图形入口，可运行内置 PX4、ArduPilot 与 ROS fixture，也可在用户选择的本地 Git 仓库中受控执行、验证和评测任务 YAML。
 
 它不是把姿态、GPS、振动、PID 等指标写死在固定页面中，而是先读取当前日志实际包含的所有消息和字段，然后提供两种选择方式：
 
@@ -70,7 +70,7 @@ flowchart TD
 
 `target_mapping` 和 `selected_mapping` 结构相同、职责不同：前者只记录最新 AI 推荐，后者是绘图的唯一选择源。AI 新推荐会整体替换当前选择；之后的手动添加、删除和清空只修改 `selected_mapping`。控件 key 包含选择修订号，因此新的 AI 推荐不会再被旧 Streamlit widget 状态覆盖。
 
-工程评测走另一条受限链路。Streamlit 不执行 Agent Loop；它通过 `src/repopilot/service.py` 使用参数数组启动本地 Node CLI，读取 CLI 产生的 JSON、`metadata.json`、`context.json`、`events.jsonl` 与 `final.diff`。Pi Agent 只在 Node 进程中运行，Git worktree、工具限制、验证、检查点、Trace 与报告均由 TypeScript 的 RepoPilot 负责。
+工程评测走另一条受限链路。Streamlit 不执行 Agent Loop；它通过 `src/repopilot/service.py` 使用参数数组启动本地 Node CLI。内置评测使用 `eval`，真实仓库模式使用 `run --repo <path> --task <path>`，并可保留成功 worktree。页面读取 CLI 产生的 JSON、`metadata.json`、`context.json`、`events.jsonl` 与 `final.diff`。Pi Agent 只在 Node 进程中运行，Git worktree、工具限制、验证、检查点、Trace 与报告均由 TypeScript 的 RepoPilot 负责。
 
 ```mermaid
 flowchart LR
@@ -222,7 +222,7 @@ Aero-Analytica/
 | `repopilot/` | Pi Agent 的 TypeScript Harness，拥有上下文、隔离、工具、验证、恢复与 Trace |
 | `evals/` | PX4、ArduPilot 与 ROS 任务 YAML、任务集和确定性 fixture 仓库 |
 | `src/repopilot/service.py` | 校验本地任务路径、以受限参数数组启动 CLI，并读取展示安全的运行产物 |
-| `tests/` | 42 个无网络 Python 单元测试，覆盖上传、PX4、Agent、Provider、字段、图表和 RepoPilot 桥接层 |
+| `tests/` | 43 个无网络 Python 单元测试，覆盖上传、PX4、Agent、Provider、字段、图表和 RepoPilot 桥接层 |
 
 ### 资源和数据目录
 
@@ -662,7 +662,7 @@ ProviderState(
 
 ## 11. 测试代码
 
-这里是当前可重复、无网络的 42 个 Python 单元测试。`test_log_uploads.py` 覆盖哈希存储、只读文件复用、同名不同内容和扩展名校验；`test_px4_parser.py` 覆盖字段发现、多实例 topic、时间对齐、模式列和仓库真实 `.ulg` 回归；`test_providers.py` 覆盖 Provider 存储、OpenAI/Anthropic 请求、模型列表、停止原因和错误脱敏；`test_agent.py` 覆盖字段映射校验、保守拼写纠正、报告自动续写和空表保护；`test_field_selection.py` 和 `test_charts.py` 覆盖字段选择与曲线可见性纯逻辑；`test_repopilot_service.py` 覆盖任务发现、Provider 到 Pi 的临时环境映射、嵌套 CLI JSON 解析和运行产物读取。另有 9 个 TypeScript/Vitest 测试，覆盖 RepoPilot 的上下文、隔离、执行、重试与恢复。
+这里是当前可重复、无网络的 43 个 Python 单元测试。`test_log_uploads.py` 覆盖哈希存储、只读文件复用、同名不同内容和扩展名校验；`test_px4_parser.py` 覆盖字段发现、多实例 topic、时间对齐、模式列和仓库真实 `.ulg` 回归；`test_providers.py` 覆盖 Provider 存储、OpenAI/Anthropic 请求、模型列表、停止原因和错误脱敏；`test_agent.py` 覆盖字段映射校验、保守拼写纠正、报告自动续写和空表保护；`test_field_selection.py` 和 `test_charts.py` 覆盖字段选择与曲线可见性纯逻辑；`test_repopilot_service.py` 覆盖任务发现、Provider 到 Pi 的临时环境映射、嵌套 CLI JSON 解析、本地 Git 仓库运行参数和运行产物归一化。另有 9 个 TypeScript/Vitest 测试，覆盖 RepoPilot 的上下文、隔离、执行、重试与恢复。
 
 当前仍缺少：
 

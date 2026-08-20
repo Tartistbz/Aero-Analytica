@@ -41,7 +41,7 @@ Node.js 20.6 or later is required. The project installs `@mariozechner/pi-coding
 ## Run a task
 
 ```powershell
-npm run repopilot -- run --repo D:\path\to\git-repository --task evals\tasks\px4\topic-instance.yml --runtime pi
+npm run repopilot -- run --repo D:\path\to\git-repository --task task.yml --runtime pi --strategy focused --keep-worktree
 ```
 
 The base repository is never modified. RepoPilot creates a detached worktree under `<repo>\.repopilot\worktrees\`, and writes artifacts under `<repo>\.repopilot\runs\<run-id>\`.
@@ -71,9 +71,10 @@ Supported API values are Pi API identifiers such as `openai-completions`, `opena
 
 ## Aero-Analytica workspace
 
-After `npm install`, start the Python application and open **工程评测**. Select a suite or task, a context strategy, and a runtime:
+After `npm install`, start the Python application and open **工程评测**. It has two entry points:
 
-- **确定性 Fake** runs the checked-in fixture actions without a model or API request.
+- **内置评测 / Bundled Evaluation** selects a checked-in suite or task. **确定性 Fake** runs checked-in fixture actions without a model or API request.
+- **真实仓库 / Local Repository** accepts a local Git repository and a trusted task YAML. It calls `repopilot run`, and can retain the successful isolated worktree for manual inspection.
 - **Pi Agent** translates the currently selected Aero-Analytica Provider, including custom request headers, into one child-process Pi configuration. Its API key is not written to task YAML, Trace, report, or Git.
 
 The workspace shows each task's verification checks, selected context files, Trace timeline, final diff, and a downloadable HTML report. A Trace replay only reads the existing JSONL artifact; it never calls a model.

@@ -37,10 +37,12 @@ program.command("run")
   .requiredOption("--repo <path>", "repository root")
   .requiredOption("--task <path>", "task YAML")
   .option("--runtime <name>", "pi or fake", "pi")
+  .option("--strategy <name>", "context strategy override")
   .option("--runs-dir <path>", "run artifact directory")
   .option("--keep-worktree", "keep worktree after success")
-  .action(async (options: { repo: string; task: string; runtime: string; runsDir?: string; keepWorktree?: boolean }) => {
-    const task = await loadTask(options.task);
+  .action(async (options: { repo: string; task: string; runtime: string; strategy?: "map-only" | "focused" | "focused+history"; runsDir?: string; keepWorktree?: boolean }) => {
+    const loaded = await loadTask(options.task);
+    const task = options.strategy ? { ...loaded, context: { ...loaded.context, strategy: options.strategy } } : loaded;
     const result = await runTask({ repoRoot: options.repo, task, runtime: runtimeFor(options.runtime), runsDir: options.runsDir, keepWorktree: options.keepWorktree });
     printResult(result);
     if (result.status !== "succeeded") process.exitCode = 1;
