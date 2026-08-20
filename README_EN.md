@@ -2,15 +2,18 @@
 
 [中文](README.md) | **English**
 
-Aero-Analytica is an interactive UAV flight-log explorer and AI-assisted diagnostic tool. It supports ArduPilot `.bin` and PX4 `.ulg` logs, dynamically discovers messages, topics, and fields, aligns manually selected or AI-recommended data into time-series charts, and generates diagnostic reports from statistical summaries.
+Aero-Analytica is an AI troubleshooting workbench for PX4, ArduPilot, ROS, and related robotics projects. It parses ArduPilot `.bin` and PX4 `.ulg` flight logs to investigate flight anomalies, and it can investigate, patch, and validate source-code errors, failing tests, and configuration issues in an isolated repository copy.
 
-The application is built with Streamlit for flight debugging, troubleshooting, and log-data exploration.
+The application is built with Streamlit for flight debugging, troubleshooting, and robotics software maintenance.
 
-## RepoPilot
+## Problems It Solves
 
-This repository also contains **RepoPilot**, a TypeScript harness for running, verifying, recovering and evaluating Pi Agent on repository tasks. Pi owns the agent loop; RepoPilot provides context selection, Git worktree isolation, constrained tools, verification gates, checkpoints, trace replay and evaluation reports.
+- **Flight diagnosis**: Upload a `.bin` or `.ulg` file, ask about propulsion, altitude, attitude, or sensors, then investigate the relevant curves and AI diagnostic report.
+- **Code repair**: Choose a PX4, ArduPilot, ROS, or other local Git repository; paste an error or describe a failure; confirm validation commands; then let AI attempt a verified repair in an isolated worktree.
 
-The Streamlit application now includes an **Engineering Evaluation** workspace. It runs bundled PX4, ArduPilot and ROS fixture tasks, or a user-selected local Git repository plus task YAML, through Fake or Pi Agent in an isolated worktree. It exposes verification, diffs, context, traces and HTML reports, and complements rather than replaces flight-log analysis. See [README_REPOPILOT.md](README_REPOPILOT.md) for the CLI, Pi configuration and task YAML.
+Code repair never writes directly to the original repository. Each run pins the current Git commit and operates in a separate worktree. A repair is marked successful only when its tests, assertions, and edit-scope policy all pass. Review the final diff, then apply the desired changes yourself.
+
+The internal execution component is **RepoPilot**. It provides repository-context selection, Git worktree isolation, constrained tools, verification gates, checkpoints, and Trace artifacts. It is not a workflow that normal users need to learn. Its developer CLI, Pi configuration, and task-YAML reference are in [README_REPOPILOT.md](README_REPOPILOT.md).
 
 ## Features
 
@@ -24,7 +27,7 @@ The Streamlit application now includes an **Engineering Evaluation** workspace. 
 - **Remote model discovery**: Fetch models from a Provider or enter a model name manually.
 - **Automatic report continuation**: Continue an incomplete report when a model reaches its output limit.
 - **Content-addressed uploads**: Store logs by SHA-256 hash so same-named files cannot overwrite one another.
-- **Engineering evaluation workspace**: Run reproducible suites or a local Git repository task, then inspect verification, Trace, final diff, retained worktree, and an evaluation report.
+- **Isolated code repair**: Enter a problem and validation commands to create a bounded internal repair task without writing YAML; inspect verification, final diff, and the retained worktree.
 
 ## Screenshots
 
@@ -82,7 +85,7 @@ Raw log files are not sent directly to the AI Provider. The request includes the
 
 - Python 3.9 or later
 - Access to an AI API is optional; manual log analysis works without one
-- Node.js 20.6 or later is required only for Engineering Evaluation
+- Node.js 20.6 or later is required only for Code Repair
 
 ### Install and Run
 
@@ -93,7 +96,7 @@ cd Aero-Analytica
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-# Required only for Engineering Evaluation
+# Required only for Code Repair
 npm install
 python -m streamlit run app.py
 ```
@@ -108,8 +111,12 @@ Open <http://localhost:8501> after startup.
 4. Save the Provider, then ask a flight-related question such as "Is the aircraft underpowered?" or "Was altitude control stable?"
 5. AI-recommended fields appear on the left, where fields can still be added, removed, or hidden individually.
 6. After chart data is prepared, the diagnostic report appears on the right.
-7. Open **Engineering Evaluation** → **Bundled Evaluation** to run the deterministic suites. Fake mode is offline.
-8. Use **Local Repository** with a local Git path and a trusted task YAML. Pi Agent uses the Provider selected in the sidebar, and its successful worktree can be retained for inspection.
+7. To handle a source-code issue, open **Code Repair**, choose the target platform, and enter the local Git repository path.
+8. Paste the complete error, failing-test output, or reproduction steps. Enter the repository's real validation commands, one per line.
+9. Confirm or adjust the allowed edit scope, then select **Check and Preview Repair**. The page shows the pinned commit, branch, original repository state, validation commands, and allowed paths.
+10. Select an AI Provider in the sidebar and start repair. AI edits only an isolated worktree.
+11. Inspect test results and the final diff. After a successful run, review the retained worktree and apply the selected changes to the original repository yourself.
+12. The bundled tasks, Fake runtime, Trace, and raw task-YAML import under **Developer Tools** are for maintenance and evaluation, not routine repair.
 
 ## Provider Configuration
 
@@ -140,11 +147,11 @@ Aero-Analytica/
 |-- src/
 |   |-- analyzer/                  # ArduPilot and PX4 parsers
 |   |-- ai/                        # Providers, Agent, and prompts
-|   |-- repopilot/                 # Bounded Streamlit-to-RepoPilot CLI bridge
+|   |-- repopilot/                 # Repository preflight, internal task generation, and RepoPilot CLI bridge
 |   |-- ui/                        # UI, charts, and controls
 |   `-- log_uploads.py             # Upload validation and hash storage
-|-- repopilot/                     # Pi Agent execution harness
-|-- evals/                         # PX4 / ArduPilot / ROS tasks and suites
+|-- repopilot/                     # Code-repair execution and verification engine
+|-- evals/                         # Developer-maintenance PX4 / ArduPilot / ROS tasks and suites
 `-- tests/                         # Offline unit tests
 ```
 
@@ -173,6 +180,8 @@ Python tests cover upload storage, PX4 parsing, Provider protocols, the AI Agent
 - The upload directory has no size limit or automatic cleanup policy.
 - API keys are not yet stored in an operating-system credential manager.
 - Data export, report export, and full Streamlit end-to-end tests are not implemented.
+- Code repair requires validation commands appropriate for the selected repository; the application does not guess and run an unknown full build.
+- An isolated worktree protects the original repository, but it is not a Docker or operating-system-level sandbox. Use only trusted local repositories and Providers.
 
 ## License
 

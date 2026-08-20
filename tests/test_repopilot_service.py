@@ -12,6 +12,8 @@ from src.ai.providers import (
 )
 from src.repopilot.service import (
     CliInvocation,
+    RepositoryInspection,
+    create_repair_task,
     discover_suites,
     discover_tasks,
     load_run_artifact,
@@ -150,6 +152,32 @@ class RepoPilotServiceTests(unittest.TestCase):
         self.assertIn("--keep-worktree", command)
         self.assertIn("focused+history", command)
         self.assertNotIn("do-not-display", command)
+
+    def test_repair_form_creates_a_bounded_internal_task(self):
+        inspection = RepositoryInspection(
+            root=Path("D:/robotics/repository"),
+            head="a" * 40,
+            branch="main",
+            dirty=False,
+            markers=("package.xml",),
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            task_path = create_repair_task(
+                inspection=inspection,
+                platform="ROS / ROS 2",
+                problem="node crashes when a topic is missing",
+                test_commands=["colcon test --packages-select telemetry"],
+                allowed_paths=["src/**", "test/**"],
+                root=Path(temp_dir),
+            )
+            payload = json.loads(task_path.read_text(encoding="utf-8"))
+
+        self.assertTrue(task_path.is_relative_to(Path(temp_dir) / ".repopilot"))
+        self.assertEqual(payload["base_ref"], "a" * 40)
+        self.assertEqual(payload["acceptance"]["test_commands"], ["colcon test --packages-select telemetry"])
+        self.assertEqual(payload["acceptance"]["diff_policy"]["allowed_paths"], ["src/**", "test/**"])
+        self.assertEqual(payload["limits"]["network"], "disabled")
+        self.assertNotIn("fake_actions", payload)
 
     def test_run_artifact_includes_trace_and_verifier_data(self):
         with tempfile.TemporaryDirectory() as temp_dir:

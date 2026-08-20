@@ -80,6 +80,17 @@ class CliInvocation:
         return self.returncode == 0 and self.payload is not None and self.error is None
 
 
+@dataclass(frozen=True)
+class RepositoryInspection:
+    """Small, display-safe snapshot used before a user starts a repair."""
+
+    root: Path
+    head: str
+    branch: Optional[str]
+    dirty: bool
+    markers: tuple[str, ...]
+
+
 def project_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -161,6 +172,143 @@ def pi_environment(provider: ProviderConfig) -> dict[str, str]:
         "REPOPILOT_PI_API_KEY": provider.api_key,
         "REPOPILOT_PI_HEADERS": json.dumps(provider.custom_headers),
     }
+
+
+def inspect_repository(path: Path) -> RepositoryInspection:
+    """Read Git state for repair preflight without changing the repository."""
+
+    repository = _repository_root(path)
+    git = _find_executable("git")
+    if git is None:
+        raise RepoPilotServiceError("未找到 Git。请安装 Git 并重启 Streamlit。")
+
+    def git_output(*arguments: str, allow_failure: bool = False) -> str:
+        try:
+            completed = subprocess.run(
+                (git, "-C", str(repository), *arguments),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=20,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RepoPilotServiceError(f"无法读取 Git 仓库状态：{exc}") from exc
+        if completed.returncode != 0 and not allow_failure:
+            detail = (completed.stderr or completed.stdout).strip()
+            raise RepoPilotServiceError(f"无法读取 Git 仓库状态：{detail or 'Git 命令失败'}")
+        return completed.stdout.strip()
+
+    root_text = git_output("rev-parse", "--show-toplevel")
+    root = Path(root_text).resolve()
+    head = git_output("rev-parse", "HEAD")
+    branch = git_output("symbolic-ref", "--short", "-q", "HEAD", allow_failure=True)
+    dirty = bool(git_output("status", "--porcelain"))
+    marker_names = (
+        "package.xml",
+        "colcon.meta",
+        "CMakeLists.txt",
+        "Makefile",
+        "wscript",
+        "pyproject.toml",
+        "package.json",
+    )
+    markers = tuple(name for name in marker_names if (root / name).is_file())
+    return RepositoryInspection(
+        root=root,
+        head=head,
+        branch=branch or None,
+        dirty=dirty,
+        markers=markers,
+    )
+
+
+def create_repair_task(
+    *,
+    inspection: RepositoryInspection,
+    platform: str,
+    problem: str,
+    test_commands: Sequence[str],
+    allowed_paths: Sequence[str],
+    root: Optional[Path] = None,
+) -> Path:
+    """Create a bounded internal task from the repair form, not user YAML.
+
+    The task stays under Aero-Analytica's ignored runtime directory instead of
+    the target repository.  ``yaml`` accepts JSON syntax, so ``json.dump``
+    keeps arbitrary user error text safely structured without a second parser.
+    """
+
+    normalized_problem = problem.strip()
+    commands = [str(command).strip() for command in test_commands if str(command).strip()]
+    paths = [str(path).strip().replace("\\", "/") for path in allowed_paths if str(path).strip()]
+    if not normalized_problem:
+        raise RepoPilotServiceError("请描述现象或粘贴完整报错。")
+    if not commands:
+        raise RepoPilotServiceError("请至少填写一条验证命令，才能判断修复是否有效。")
+    if not paths:
+        raise RepoPilotServiceError("请至少填写一个允许修改的目录或文件范围。")
+    if any(
+        Path(path).is_absolute() or path.startswith("../") or ":" in path
+        for path in paths
+    ):
+        raise RepoPilotServiceError("修改范围必须是仓库内的相对路径或 glob。")
+
+    runtime_root = Path(root or project_root()).resolve()
+    task_dir = runtime_root / ".repopilot" / "ui-tasks"
+    task_dir.mkdir(parents=True, exist_ok=True)
+    platform_slug = re.sub(r"[^a-z0-9]+", "-", platform.casefold()).strip("-") or "project"
+    task_id = f"repair-{platform_slug}-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
+    task = {
+        "id": task_id,
+        "base_ref": inspection.head,
+        "prompt": (
+            f"You are repairing a {platform} repository in an isolated Git worktree.\n\n"
+            f"Reported problem:\n{normalized_problem}\n\n"
+            "First inspect the relevant code and the reported failure. Make the smallest "
+            "correct change within the allowed paths, run the declared validation command(s), "
+            "and inspect git_diff before finishing. Do not edit generated files, dependency "
+            "locks, credentials, or files outside the allowed paths."
+        ),
+        "setup": {"commands": []},
+        "context": {
+            "strategy": "focused",
+            "budget_tokens": 16000,
+            "include": ["**/*"],
+            "exclude": [".git/**", "node_modules/**", "data/**", ".repopilot/**"],
+        },
+        "acceptance": {
+            "test_commands": commands,
+            "lint_commands": [],
+            "assertions": [],
+            "diff_policy": {
+                "allowed_paths": paths,
+                "denied_paths": [
+                    ".git/**",
+                    ".env",
+                    ".env.*",
+                    "*.key",
+                    "*.pem",
+                    "*.lock",
+                    ".aero-analytica/**",
+                    ".repopilot/**",
+                ],
+                "max_files_changed": 12,
+                "max_added_lines": 500,
+                "max_deleted_lines": 200,
+            },
+        },
+        "limits": {
+            "timeout_seconds": DEFAULT_TIMEOUT_SECONDS,
+            "max_retries": 2,
+            "max_output_bytes": 50000,
+            "network": "disabled",
+        },
+    }
+    task_path = task_dir / f"{task_id}.yml"
+    task_path.write_text(json.dumps(task, ensure_ascii=False, indent=2), encoding="utf-8")
+    return task_path
 
 
 def run_evaluation(

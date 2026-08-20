@@ -4,7 +4,7 @@
 
 RepoPilot is a TypeScript harness for running, verifying, recovering and evaluating Pi Agent on repository tasks. Pi owns the agent loop. RepoPilot owns the engineering control plane around it: repository context selection, Git worktree isolation, constrained tools, verification gates, checkpoints, JSONL traces, replay and reproducible evaluation.
 
-The existing Aero-Analytica Python application remains the UAV-log product in this repository. Its **工程评测 / Engineering Evaluation** Streamlit tab is the graphical entry point for the bundled RepoPilot suites; the Node CLI remains the only execution backend. RepoPilot does not replace flight-log analysis.
+The existing Aero-Analytica Python application remains the user-facing UAV and robotics troubleshooting product in this repository. Its **代码问题修复 / Code Repair** Streamlit tab is the normal graphical entry point: it converts a platform, repository, problem description, validation commands, and allowed edit scope into an internal task, then calls this CLI. RepoPilot remains the execution backend and does not replace flight-log analysis.
 
 ## Architecture
 
@@ -71,13 +71,12 @@ Supported API values are Pi API identifiers such as `openai-completions`, `opena
 
 ## Aero-Analytica workspace
 
-After `npm install`, start the Python application and open **工程评测**. It has two entry points:
+After `npm install`, start the Python application and open **代码问题修复**. The normal repair flow asks for a platform, local Git repository, error or reproduction steps, validation commands, and allowed edit paths. It checks and pins the repository HEAD, then creates an ignored internal task under `.repopilot/ui-tasks/`; users do not need to write task YAML.
 
-- **内置评测 / Bundled Evaluation** selects a checked-in suite or task. **确定性 Fake** runs checked-in fixture actions without a model or API request.
-- **真实仓库 / Local Repository** accepts a local Git repository and a trusted task YAML. It calls `repopilot run`, and can retain the successful isolated worktree for manual inspection.
-- **Pi Agent** translates the currently selected Aero-Analytica Provider, including custom request headers, into one child-process Pi configuration. Its API key is not written to task YAML, Trace, report, or Git.
+- **Code Repair** uses Pi Agent through the currently selected Aero-Analytica Provider, including custom request headers. Its API key is not written to the internal task, Trace, report, or Git.
+- **Developer Tools** contains **Bundled Evaluation** and **Import Task YAML**. **确定性 Fake** runs checked-in fixture actions without a model or API request; raw YAML is reserved for trusted developer-created tasks.
 
-The workspace shows each task's verification checks, selected context files, Trace timeline, final diff, and a downloadable HTML report. A Trace replay only reads the existing JSONL artifact; it never calls a model.
+The normal repair result prioritizes verification output, final diff, and the retained worktree. Context details, Trace, replay, and reports are available as technical details. A Trace replay only reads the existing JSONL artifact; it never calls a model.
 
 ## Replay and reports
 

@@ -83,7 +83,7 @@ with st.sidebar:
             st.error(f"日志加载失败：{exc}")
 
 # --- 4. 主页面布局 ---
-flight_tab, engineering_tab = st.tabs(["飞行日志分析", "工程评测"])
+flight_tab, repair_tab = st.tabs(["飞行问题诊断", "代码问题修复"])
 
 with flight_tab:
     col_left, col_right = st.columns([2.2, 1], gap="large")
@@ -217,5 +217,5 @@ with flight_tab:
                         )
                         st.rerun()
 
-with engineering_tab:
+with repair_tab:
     render_repopilot_workspace(active_provider)
