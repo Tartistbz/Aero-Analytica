@@ -8,9 +8,9 @@ Aero-Analytica 是一个面向无人机飞行日志的交互式分析与 AI 辅�
 
 ## RepoPilot
 
-仓库同时包含独立的 TypeScript 工程 **RepoPilot**：基于 Pi Agent SDK 的真实代码库执行、验证、恢复与评测 Harness。Pi 负责 Agent Loop，RepoPilot 负责仓库上下文选择、Git worktree 隔离、受限工具、验证门禁、Checkpoint、Trace 回放和评测报告。
+仓库同时包含 TypeScript 工程 **RepoPilot**：基于 Pi Agent SDK 的真实代码库执行、验证、恢复与评测 Harness。Pi 负责 Agent Loop，RepoPilot 负责仓库上下文选择、Git worktree 隔离、受限工具、验证门禁、Checkpoint、Trace 回放和评测报告。
 
-RepoPilot 不嵌入 Streamlit 日志分析应用，也不替代现有 Aero-Analytica；现有无人机领域能力可作为后续 PX4/ArduPilot 任务的真实上下文。安装、Pi 配置、CLI、任务 YAML 与 15 个可复现评测任务见 [README_REPOPILOT.md](README_REPOPILOT.md)。
+Streamlit 现已提供“工程评测”页签，作为 Aero-Analytica 的第二个工作区：可选择内置 PX4、ArduPilot 与 ROS fixture 任务，运行 Fake 或 Pi Agent，查看验证、Diff、上下文、Trace 和 HTML 报告。它不替代飞行日志分析；详细 CLI、Pi 配置和任务 YAML 见 [README_REPOPILOT.md](README_REPOPILOT.md)。
 
 ## 功能特点
 
@@ -24,6 +24,7 @@ RepoPilot 不嵌入 Streamlit 日志分析应用，也不替代现有 Aero-Analy
 - **远程模型列表**：可从 Provider 获取模型，也可以手工指定模型名。
 - **报告自动续写**：模型输出达到长度上限时，可自动继续生成未完成的报告。
 - **安全上传存储**：日志按 SHA-256 内容哈希保存，同名文件不会相互覆盖。
+- **工程评测工作区**：在同一应用内运行可复现的 RepoPilot 任务，查看验证、Trace、最终 Diff 和评测报告。
 
 ## 界面预览
 
@@ -81,6 +82,7 @@ AI 分析包含两个阶段：
 
 - Python 3.9 或更高版本
 - 可访问的 AI API（可选；手动日志分析不需要）
+- Node.js 20.6 或更高版本（仅“工程评测”需要）
 
 ### 安装与运行
 
@@ -91,6 +93,8 @@ cd Aero-Analytica
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+# 仅“工程评测”需要
+npm install
 python -m streamlit run app.py
 ```
 
@@ -104,6 +108,7 @@ python -m streamlit run app.py
 4. 保存 Provider 后，在右侧输入飞行问题，例如“动力是否不足”或“高度控制是否稳定”。
 5. AI 推荐的字段会显示在左侧，可继续手动增删字段或隐藏单条曲线。
 6. 图表和统计数据准备完成后，右侧会生成分析报告。
+7. 切换到“工程评测”可运行内置任务集；默认 Fake 模式不调用真实模型，Pi Agent 模式使用侧边栏当前 Provider。
 
 ## Provider 配置
 
@@ -129,12 +134,16 @@ Aero-Analytica/
 |-- README_EN.md                   # English guide
 |-- PROJECT_ARCHITECTURE.md        # 详细架构与数据流
 |-- requirements.txt               # Python 依赖
+|-- package.json                   # RepoPilot Node 依赖与命令
 |-- assets/screenshots/            # 界面截图
 |-- src/
 |   |-- analyzer/                  # ArduPilot 与 PX4 解析器
 |   |-- ai/                        # Provider、Agent 和提示词
+|   |-- repopilot/                 # Streamlit 到 RepoPilot CLI 的受限桥接层
 |   |-- ui/                        # 界面、图表和交互控件
 |   `-- log_uploads.py             # 上传校验与哈希存储
+|-- repopilot/                     # Pi Agent 执行 Harness
+|-- evals/                         # PX4 / ArduPilot / ROS 任务与任务集
 `-- tests/                         # 离线单元测试
 ```
 
@@ -149,9 +158,12 @@ Aero-Analytica/
 ```powershell
 python -m unittest discover -s tests -v
 python -m compileall -q app.py src tests
+npm run typecheck
+npm test
+npm run eval:smoke
 ```
 
-当前包含 36 个单元测试，覆盖日志上传、PX4 解析、Provider 协议、AI Agent、字段选择和图表逻辑。
+当前 Python 测试覆盖日志上传、PX4 解析、Provider 协议、AI Agent、字段选择、图表和 RepoPilot 桥接层；TypeScript 测试覆盖 RepoPilot 的任务执行、恢复、上下文与隔离逻辑。
 
 ## 当前限制
 

@@ -4,7 +4,7 @@
 
 RepoPilot is a TypeScript harness for running, verifying, recovering and evaluating Pi Agent on repository tasks. Pi owns the agent loop. RepoPilot owns the engineering control plane around it: repository context selection, Git worktree isolation, constrained tools, verification gates, checkpoints, JSONL traces, replay and reproducible evaluation.
 
-The existing Aero-Analytica Python application remains in this repository as a separate UAV-log product. It is also the domain context for future PX4 and ArduPilot tasks; RepoPilot does not replace or embed itself into the Streamlit application.
+The existing Aero-Analytica Python application remains the UAV-log product in this repository. Its **工程评测 / Engineering Evaluation** Streamlit tab is the graphical entry point for the bundled RepoPilot suites; the Node CLI remains the only execution backend. RepoPilot does not replace flight-log analysis.
 
 ## Architecture
 
@@ -68,6 +68,15 @@ npm run repopilot -- run --repo D:\path\to\git-repository --task task.yml --runt
 ```
 
 Supported API values are Pi API identifiers such as `openai-completions`, `openai-responses` and `anthropic-messages`. Runtime credentials are passed to Pi in memory and are redacted before Trace persistence.
+
+## Aero-Analytica workspace
+
+After `npm install`, start the Python application and open **工程评测**. Select a suite or task, a context strategy, and a runtime:
+
+- **确定性 Fake** runs the checked-in fixture actions without a model or API request.
+- **Pi Agent** translates the currently selected Aero-Analytica Provider, including custom request headers, into one child-process Pi configuration. Its API key is not written to task YAML, Trace, report, or Git.
+
+The workspace shows each task's verification checks, selected context files, Trace timeline, final diff, and a downloadable HTML report. A Trace replay only reads the existing JSONL artifact; it never calls a model.
 
 ## Replay and reports
 

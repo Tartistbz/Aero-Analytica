@@ -8,9 +8,9 @@ The application is built with Streamlit for flight debugging, troubleshooting, a
 
 ## RepoPilot
 
-This repository also contains **RepoPilot**, an independent TypeScript harness for running, verifying, recovering and evaluating Pi Agent on repository tasks. Pi owns the agent loop; RepoPilot provides context selection, Git worktree isolation, constrained tools, verification gates, checkpoints, trace replay and evaluation reports.
+This repository also contains **RepoPilot**, a TypeScript harness for running, verifying, recovering and evaluating Pi Agent on repository tasks. Pi owns the agent loop; RepoPilot provides context selection, Git worktree isolation, constrained tools, verification gates, checkpoints, trace replay and evaluation reports.
 
-RepoPilot does not replace or embed into the Streamlit log-analysis application. The UAV domain remains useful context for future PX4 and ArduPilot tasks. See [README_REPOPILOT.md](README_REPOPILOT.md) for installation, Pi configuration, CLI commands, task YAML and the reproducible 15-task evaluation suite.
+The Streamlit application now includes an **Engineering Evaluation** workspace. It runs bundled PX4, ArduPilot and ROS fixture tasks through Fake or Pi Agent, and exposes verification, diffs, context, traces and HTML reports. It complements rather than replaces flight-log analysis. See [README_REPOPILOT.md](README_REPOPILOT.md) for the CLI, Pi configuration and task YAML.
 
 ## Features
 
@@ -24,6 +24,7 @@ RepoPilot does not replace or embed into the Streamlit log-analysis application.
 - **Remote model discovery**: Fetch models from a Provider or enter a model name manually.
 - **Automatic report continuation**: Continue an incomplete report when a model reaches its output limit.
 - **Content-addressed uploads**: Store logs by SHA-256 hash so same-named files cannot overwrite one another.
+- **Engineering evaluation workspace**: Run reproducible RepoPilot tasks and inspect verification, Trace, final diff, and an evaluation report in the same application.
 
 ## Screenshots
 
@@ -81,6 +82,7 @@ Raw log files are not sent directly to the AI Provider. The request includes the
 
 - Python 3.9 or later
 - Access to an AI API is optional; manual log analysis works without one
+- Node.js 20.6 or later is required only for Engineering Evaluation
 
 ### Install and Run
 
@@ -91,6 +93,8 @@ cd Aero-Analytica
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+# Required only for Engineering Evaluation
+npm install
 python -m streamlit run app.py
 ```
 
@@ -104,6 +108,7 @@ Open <http://localhost:8501> after startup.
 4. Save the Provider, then ask a flight-related question such as "Is the aircraft underpowered?" or "Was altitude control stable?"
 5. AI-recommended fields appear on the left, where fields can still be added, removed, or hidden individually.
 6. After chart data is prepared, the diagnostic report appears on the right.
+7. Open **Engineering Evaluation** to run a bundled suite. Fake mode is offline; Pi Agent uses the Provider selected in the sidebar.
 
 ## Provider Configuration
 
@@ -129,12 +134,16 @@ Aero-Analytica/
 |-- README_EN.md                   # English guide
 |-- PROJECT_ARCHITECTURE.md        # Detailed architecture and data flow
 |-- requirements.txt               # Python dependencies
+|-- package.json                   # RepoPilot Node dependencies and commands
 |-- assets/screenshots/            # UI screenshots
 |-- src/
 |   |-- analyzer/                  # ArduPilot and PX4 parsers
 |   |-- ai/                        # Providers, Agent, and prompts
+|   |-- repopilot/                 # Bounded Streamlit-to-RepoPilot CLI bridge
 |   |-- ui/                        # UI, charts, and controls
 |   `-- log_uploads.py             # Upload validation and hash storage
+|-- repopilot/                     # Pi Agent execution harness
+|-- evals/                         # PX4 / ArduPilot / ROS tasks and suites
 `-- tests/                         # Offline unit tests
 ```
 
@@ -149,9 +158,12 @@ The test suite does not call a real AI service:
 ```powershell
 python -m unittest discover -s tests -v
 python -m compileall -q app.py src tests
+npm run typecheck
+npm test
+npm run eval:smoke
 ```
 
-The current suite contains 36 unit tests covering upload storage, PX4 parsing, Provider protocols, the AI Agent, field selection, and chart logic.
+Python tests cover upload storage, PX4 parsing, Provider protocols, the AI Agent, field selection, charts, and the RepoPilot bridge. TypeScript tests cover RepoPilot execution, recovery, context, and isolation.
 
 ## Current Limitations
 

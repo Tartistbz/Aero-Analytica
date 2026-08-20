@@ -75,6 +75,21 @@ function resourceLoader(systemPrompt: string): ResourceLoader {
   };
 }
 
+function configuredHeaders(): Record<string, string> | undefined {
+  const raw = process.env.REPOPILOT_PI_HEADERS;
+  if (!raw) return undefined;
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { throw new Error("REPOPILOT_PI_HEADERS must be valid JSON."); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("REPOPILOT_PI_HEADERS must be a JSON object.");
+  }
+  return Object.fromEntries(
+    Object.entries(parsed as Record<string, unknown>)
+      .filter(([key]) => key.trim())
+      .map(([key, value]) => [key.trim(), String(value)]),
+  );
+}
+
 function configuredModel(registry: ModelRegistry, authStorage: AuthStorage): Model<Api> | undefined {
   const provider = process.env.REPOPILOT_PI_PROVIDER;
   const modelId = process.env.REPOPILOT_PI_MODEL;
@@ -82,13 +97,15 @@ function configuredModel(registry: ModelRegistry, authStorage: AuthStorage): Mod
   const baseUrl = process.env.REPOPILOT_PI_BASE_URL;
   const api = (process.env.REPOPILOT_PI_API ?? "openai-completions") as Api;
   if (provider && modelId && baseUrl) {
+    const headers = configuredHeaders();
     if (apiKey) authStorage.setRuntimeApiKey(provider, apiKey);
     registry.registerProvider(provider, {
       name: provider,
       baseUrl,
       api,
       apiKey: apiKey ?? `REPOPILOT_PI_API_KEY_${provider.toUpperCase().replaceAll(/[^A-Z0-9]/g, "_")}`,
-      authHeader: true,
+      headers,
+      authHeader: api === "openai-completions",
       models: [{ id: modelId, name: modelId, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 }],
     });
     return registry.find(provider, modelId);

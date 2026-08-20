@@ -1,12 +1,15 @@
 # Aero-Analytica 项目代码与架构说明
 
-本文档说明当前项目到底是什么、代码如何组织、每个文件承担什么职责，以及一次“上传日志 -> AI 对话 -> 自动选择相关字段 -> 绘图 -> AI 报告”的完整执行过程。
+本文档说明当前项目到底是什么、代码如何组织、每个文件承担什么职责，以及两条运行链路：“上传日志 -> AI 对话 -> 自动选择相关字段 -> 绘图 -> AI 报告”与“工程任务 -> RepoPilot -> 验证 / Trace / 报告”。
 
 文档以根目录 `app.py` 为项目入口，只描述当前代码和运行链路。
 
 ## 1. 项目定位
 
-当前 Aero-Analytica 是一个 **AI 对话驱动的无人机日志动态分析工具**。
+当前 Aero-Analytica 包含两个共享 Provider 管理与无人机领域上下文的工作区：
+
+1. **飞行日志分析**：AI 对话驱动的无人机日志动态分析工具。
+2. **工程评测**：RepoPilot 的图形入口，用于受控执行、验证和评测 PX4、ArduPilot 与 ROS 相关代码任务。
 
 它不是把姿态、GPS、振动、PID 等指标写死在固定页面中，而是先读取当前日志实际包含的所有消息和字段，然后提供两种选择方式：
 
@@ -15,7 +18,7 @@
 
 两种方式最终都会生成同一种字段映射，交给解析器按需提取数据，再用于 Plotly 绘图。AI 对话模式还会把提取结果压缩成统计摘要和时序采样，调用第二次模型生成诊断报告。
 
-因此，当前 AI 并不是直接读取整个二进制日志。它承担两个角色：
+在飞行日志分析工作区中，AI 并不是直接读取整个二进制日志。它承担两个角色：
 
 - **字段调度员（Dispatcher）**：根据问题选择相关消息和字段列表。
 - **数据分析员（Analyst）**：根据已提取数据的统计信息和采样点生成分析报告。
@@ -66,6 +69,20 @@ flowchart TD
 - 为右侧 AI 报告准备数据。
 
 `target_mapping` 和 `selected_mapping` 结构相同、职责不同：前者只记录最新 AI 推荐，后者是绘图的唯一选择源。AI 新推荐会整体替换当前选择；之后的手动添加、删除和清空只修改 `selected_mapping`。控件 key 包含选择修订号，因此新的 AI 推荐不会再被旧 Streamlit widget 状态覆盖。
+
+工程评测走另一条受限链路。Streamlit 不执行 Agent Loop；它通过 `src/repopilot/service.py` 使用参数数组启动本地 Node CLI，读取 CLI 产生的 JSON、`metadata.json`、`context.json`、`events.jsonl` 与 `final.diff`。Pi Agent 只在 Node 进程中运行，Git worktree、工具限制、验证、检查点、Trace 与报告均由 TypeScript 的 RepoPilot 负责。
+
+```mermaid
+flowchart LR
+    UI["工程评测页签"] --> BRIDGE["src/repopilot/service.py"]
+    BRIDGE --> CLI["RepoPilot CLI"]
+    CLI --> CTX["Context Engine"]
+    CTX --> PI["Pi Agent / Fake Runtime"]
+    PI --> TOOLS["search read patch shell test git_diff"]
+    TOOLS --> VERIFY["Verifier"]
+    VERIFY --> TRACE["JSONL Trace / Diff / HTML 报告"]
+    TRACE --> UI
+```
 
 ## 3. 总体架构
 
@@ -146,7 +163,10 @@ Aero-Analytica/
 |-- README.md
 |-- README_EN.md
 |-- requirements.txt
+|-- package.json
 |-- LICENSE
+|-- repopilot/                     # TypeScript 执行 Harness
+|-- evals/                         # 任务 YAML、任务集和确定性 fixture
 |-- tests/
 |   |-- __init__.py
 |   |-- test_agent.py
@@ -154,7 +174,8 @@ Aero-Analytica/
 |   |-- test_field_selection.py
 |   |-- test_log_uploads.py
 |   |-- test_px4_parser.py
-|   `-- test_providers.py
+|   |-- test_providers.py
+|   `-- test_repopilot_service.py
 |-- assets/
 |   `-- screenshots/
 |       `-- README.md
@@ -175,12 +196,16 @@ Aero-Analytica/
     |   |-- agent.py
     |   |-- providers.py
     |   `-- prompts.py
+    |-- repopilot/
+    |   |-- __init__.py
+    |   `-- service.py
     `-- ui/
         |-- __init__.py
         |-- styles.py
         |-- components.py
         |-- charts.py
-        `-- provider_dialog.py
+        |-- provider_dialog.py
+        `-- repopilot_workspace.py
 ```
 
 ### 根目录文件
@@ -191,9 +216,13 @@ Aero-Analytica/
 | `README.md` / `README_EN.md` | 中英文项目概览、安装运行、当前能力和已知问题 |
 | `PROJECT_ARCHITECTURE.md` | 当前代码、架构、调用关系和数据契约的详细说明 |
 | `requirements.txt` | Python 依赖清单，大多数依赖未锁定版本 |
+| `package.json` | RepoPilot 的 Node 依赖、类型检查、测试和 CLI 命令 |
 | `LICENSE` | GNU GPL v3 许可证 |
 | `src/log_uploads.py` | 校验日志扩展名，计算 SHA-256，并将上传内容原子写入哈希路径 |
-| `tests/` | 36 个无网络单元测试，覆盖上传存储、PX4 解析、Agent、Provider、字段选择和图表逻辑 |
+| `repopilot/` | Pi Agent 的 TypeScript Harness，拥有上下文、隔离、工具、验证、恢复与 Trace |
+| `evals/` | PX4、ArduPilot 与 ROS 任务 YAML、任务集和确定性 fixture 仓库 |
+| `src/repopilot/service.py` | 校验本地任务路径、以受限参数数组启动 CLI，并读取展示安全的运行产物 |
+| `tests/` | 42 个无网络 Python 单元测试，覆盖上传、PX4、Agent、Provider、字段、图表和 RepoPilot 桥接层 |
 
 ### 资源和数据目录
 
@@ -633,7 +662,7 @@ ProviderState(
 
 ## 11. 测试代码
 
-这里是当前可重复、无网络的 36 个单元测试。`test_log_uploads.py` 覆盖哈希存储、只读文件复用、同名不同内容和扩展名校验；`test_px4_parser.py` 覆盖字段发现、多实例 topic、时间对齐、模式列和仓库真实 `.ulg` 回归；`test_providers.py` 覆盖 Provider 存储、OpenAI/Anthropic 请求、模型列表、停止原因和错误脱敏；`test_agent.py` 覆盖字段映射校验、保守拼写纠正、报告自动续写和空表保护；`test_field_selection.py` 和 `test_charts.py` 覆盖字段选择与曲线可见性纯逻辑。
+这里是当前可重复、无网络的 42 个 Python 单元测试。`test_log_uploads.py` 覆盖哈希存储、只读文件复用、同名不同内容和扩展名校验；`test_px4_parser.py` 覆盖字段发现、多实例 topic、时间对齐、模式列和仓库真实 `.ulg` 回归；`test_providers.py` 覆盖 Provider 存储、OpenAI/Anthropic 请求、模型列表、停止原因和错误脱敏；`test_agent.py` 覆盖字段映射校验、保守拼写纠正、报告自动续写和空表保护；`test_field_selection.py` 和 `test_charts.py` 覆盖字段选择与曲线可见性纯逻辑；`test_repopilot_service.py` 覆盖任务发现、Provider 到 Pi 的临时环境映射、嵌套 CLI JSON 解析和运行产物读取。另有 9 个 TypeScript/Vitest 测试，覆盖 RepoPilot 的上下文、隔离、执行、重试与恢复。
 
 当前仍缺少：
 
@@ -688,7 +717,7 @@ app.py
 
 ## 15. 最终理解
 
-当前项目的核心是下面这条主线：
+飞行日志分析工作区的核心主线是：
 
 ```text
 日志字段发现
@@ -699,6 +728,6 @@ app.py
   -> 当前 Provider 根据统计摘要和采样数据生成报告
 ```
 
-手动字段选择是这条主线的另一个入口；它绕过 AI Dispatcher，但复用同一个解析器和图表数据契约。`app.py` 负责整个流程，`src/analyzer` 负责日志读取，`src/ai` 负责 Provider 协议适配与两阶段模型调用，`src/ui` 负责 Provider 管理、字段列表和可视化。
+手动字段选择是这条主线的另一个入口；它绕过 AI Dispatcher，但复用同一个解析器和图表数据契约。`app.py` 负责两个工作区的页面编排，`src/analyzer` 负责日志读取，`src/ai` 负责 Provider 协议适配与两阶段模型调用，`src/ui` 负责 Provider 管理、字段列表、可视化和工程评测展示。RepoPilot 的 TypeScript 子工程负责真实代码库任务的执行与评测，Python 桥接层不复制 Agent Loop，也不修改任务执行产物。
 
 这就是当前版本真实的产品形态和代码架构。
