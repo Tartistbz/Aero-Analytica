@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-Aero-Analytica is an AI troubleshooting workbench for PX4, ArduPilot, ROS, and related robotics projects. It parses ArduPilot `.bin` and PX4 `.ulg` flight logs to investigate flight anomalies, and it can investigate, patch, and validate source-code errors, failing tests, and configuration issues in an isolated repository copy.
+Aero-Analytica is an AI troubleshooting workbench for PX4, ArduPilot, ROS, and related robotics projects. It brings flight logs, source code, and natural-language questions into one workflow: extract checkable evidence first, then ask AI to explain causes and next actions instead of returning a generic chat response.
 
 The application is built with Streamlit for flight debugging, troubleshooting, and robotics software maintenance.
 
@@ -14,6 +14,18 @@ The application is built with Streamlit for flight debugging, troubleshooting, a
 Code repair never writes directly to the original repository. Each run pins the current Git commit and operates in a separate worktree. A repair is marked successful only when its tests, assertions, and edit-scope policy all pass. Review the final diff, then apply the desired changes yourself.
 
 The internal execution component is **RepoPilot**. It provides repository-context selection, Git worktree isolation, constrained tools, verification gates, checkpoints, and Trace artifacts. It is not a workflow that normal users need to learn. Its developer CLI, Pi configuration, and task-YAML reference are in [README_REPOPILOT.md](README_REPOPILOT.md).
+
+## AI Innovation
+
+Aero-Analytica does not simply upload a log and let a model guess. It is built around an evidence chain for UAV and robotics troubleshooting:
+
+1. **Schema-aware field dispatch**: Every `.bin` / `.ulg` file is scanned for the messages, topics, and fields that actually exist. The Dispatcher selects signals relevant to the user's question, so the workflow remains useful across controllers, firmware versions, and trimmed logs without a fixed field template.
+2. **Evidence-first diagnosis**: The Analyst receives field statistics, time-series samples, and the user's question, then produces a report structured around observed behavior, evidence, likely causes, and recommended actions. Raw logs are not sent directly to the Provider, and every conclusion can be checked against a curve and time range.
+3. **Provider and model portability**: A single Provider layer supports OpenAI Compatible, Anthropic Compatible, domestic services, and self-hosted gateways. Models can be switched without changing the diagnosis workflow. Truncated model output is continued automatically so long reports do not end mid-sentence.
+4. **A diagnosis-to-repair loop**: When evidence points to source, test, or configuration issues, AI can inspect and patch an isolated Git worktree and run validation commands confirmed by the user. The original repository is never written directly; users review the diff before applying it.
+5. **Human-guided, not black-box automation**: Users can adjust fields, curves, Providers, patches, and conclusions. AI narrows the search space and explains evidence, while the engineer remains in control of decisions and verification.
+
+The goal is to turn “the aircraft feels wrong” into an actionable investigation: which signals to inspect, when the anomaly began, which hypotheses the data supports, and whether the next check belongs to parameters, hardware, or code.
 
 ## Features
 
@@ -28,6 +40,13 @@ The internal execution component is **RepoPilot**. It provides repository-contex
 - **Automatic report continuation**: Continue an incomplete report when a model reaches its output limit.
 - **Content-addressed uploads**: Store logs by SHA-256 hash so same-named files cannot overwrite one another.
 - **Isolated code repair**: Enter a problem and validation commands to create a bounded internal repair task without writing YAML; inspect verification, final diff, and the retained worktree.
+
+## Typical AI Use Cases
+
+- **Insufficient thrust**: Ask “the aircraft feels underpowered.” AI prioritizes motor output, battery voltage/current, throttle, and attitude response to distinguish limited power reserve, current limiting, and controller saturation.
+- **Altitude or attitude instability**: Ask “altitude control is unstable” or “it drops during landing.” AI selects altitude sources, setpoints, estimator state, and control outputs, then highlights time ranges worth reviewing.
+- **Sensor or estimator faults**: Paste an alert or log message. AI links the message fields to the corresponding time series instead of treating a single text warning as a complete diagnosis.
+- **Source regressions**: Paste a PX4, ArduPilot, or ROS build/test failure. AI locates the relevant files in an isolated copy, proposes a patch, and uses test results to show whether the fix holds.
 
 ## Screenshots
 
